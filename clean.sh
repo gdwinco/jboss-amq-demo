@@ -4,7 +4,7 @@
 . ./config.sh
 
 echo "	--> Log into openshift"
-oc login ${OPENSHIFT_PRIMARY_MASTER}:8443 --username=${OPENSHIFT_PRIMARY_USER} --password=${OPENSHIFT_PRIMARY_USER_PASSWORD} --insecure-skip-tls-verify=false
+oc login ${OPENSHIFT_PRIMARY_MASTER} --username=${OPENSHIFT_PRIMARY_USER} --password=${OPENSHIFT_PRIMARY_USER_PASSWORD} --insecure-skip-tls-verify=false
 echo "	--> Switch to project"
 oc project ${OPENSHIFT_PRIMARY_PROJECT}
 echo "	--> delete all openshift resources"

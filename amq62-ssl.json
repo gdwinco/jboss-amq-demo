@@ -6,13 +6,13 @@
             "description": "Application template for JBoss A-MQ brokers. These can be deployed as standalone or in a mesh. This template supports SSL and requires usage of OpenShift secrets.",
             "iconClass": "icon-jboss",
             "tags": "messaging,amq,jboss,xpaas",
-            "version": "1.4"
+            "version": "1.7"
         },
         "name": "amq62-ssl"
     },
     "labels": {
         "template": "amq62-ssl",
-        "xpaas": "1.4"
+        "xpaas": "1.7"
     },
     "parameters": [
         {
@@ -328,7 +328,7 @@
                             "from": {
                                 "kind": "ImageStreamTag",
                                 "namespace": "${IMAGE_STREAM_NAMESPACE}",
-                                "name": "jboss-amq-62:latest"
+                                "name": "jboss-amq-62:1.7"
                             }
                         }
                     },

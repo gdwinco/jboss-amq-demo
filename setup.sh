@@ -82,14 +82,16 @@ echo "	--> Add the view role to the service account to enable viewing all the re
 
 echo " "
 echo " ---------  Step 6 ------------------"
-echo "	--> add the amq62-ssl template to the nammespace"
-oc create -f amq62-ssl.json
+#echo "	--> add the amq62-ssl template to the nammespace"
+echo " templates are located here: https://github.com/jboss-openshift/application-templates/tree/master/amq "
+echo "	--> add the amq63-ssl template to the nammespace"
+oc create -f amq63-ssl.json
 # add error check??
 
-echo "	--> Create a new application from the amq62-ssl template"
+echo "	--> Create a new application from the amq63-ssl template"
 #
 if [ `oc get dc -l app=fuse-amq | wc -l` == 0 ] ; then
-   oc new-app amq62-ssl -l app=fuse-amq -p APPLICATION_NAME=${OPENSHIFT_APPLICATION_NAME} -p AMQ_MESH_DISCOVERY_TYPE=kube -p MQ_PROTOCOL=openwire -p MQ_QUEUES=testQueue -p MQ_TOPICS=testTopic -p MQ_USERNAME=admin -p MQ_PASSWORD=password -p MQ_TOPICS=testtopic -p AMQ_TRUSTSTORE=amq-server.ts -p AMQ_TRUSTSTORE_PASSWORD=password -p AMQ_KEYSTORE=amq-server.ks -p AMQ_KEYSTORE_PASSWORD=password -p AMQ_STORAGE_USAGE_LIMIT=256M 
+   oc new-app amq63-ssl -l app=fuse-amq -p APPLICATION_NAME=${OPENSHIFT_APPLICATION_NAME} -p AMQ_MESH_DISCOVERY_TYPE=kube -p MQ_PROTOCOL=openwire -p MQ_QUEUES=testQueue -p MQ_TOPICS=testTopic -p MQ_USERNAME=admin -p MQ_PASSWORD=password -p MQ_TOPICS=testtopic -p AMQ_TRUSTSTORE=amq-server.ts -p AMQ_TRUSTSTORE_PASSWORD=password -p AMQ_KEYSTORE=amq-server.ks -p AMQ_KEYSTORE_PASSWORD=password -p AMQ_STORAGE_USAGE_LIMIT=256M 
 else 
    echo "FAILED" && exit 1
 fi

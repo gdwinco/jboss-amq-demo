@@ -1,7 +1,18 @@
 #!/bin/bash
 
+####
+echo $'\n#################################################################'
+echo "USAGE: setup.sh - run without cleaning up from previous runs
+echo "USAGE: setup.sh clean - run invoking clean.sh first
+echo $'#################################################################\n'
+if [[ $# -eq 1 ]] ; then
+  if [[ $1 = "clean" ]] ; then 
+    . ./clean.sh 
+  fi
+fi
+
 # Configuration
-. ./clean.sh
+#. ./clean.sh
 . ./config.sh
 
 echo "	--> Create a keystore for the broker SERVER"
@@ -46,7 +57,7 @@ oc login ${OPENSHIFT_PRIMARY_MASTER} --username=${OPENSHIFT_PRIMARY_USER} --pass
 
 echo " "
 echo " ---------  Step 1 -----------------"
-echo "	--> Create a new project"
+echo "	--> Create a new project:" ${OPENSHIFT_PRIMARY_PROJECT}
 oc project ${OPENSHIFT_PRIMARY_PROJECT}
 ! [ $? == 0 ] && oc new-project ${OPENSHIFT_PRIMARY_PROJECT}
 ! [ $? == 0 ] && echo "FAILED" && exit 1
@@ -78,41 +89,65 @@ echo " "
 echo " ---------  Step 5 ------------------"
 echo "	--> Add the view role to the service account to enable viewing all the resources in the project namespace, which is necessary for managing the cluster when using the Kubernetes REST API agent for discovering the mesh endpoints"
 
-[ "`oc describe policyBindings :default | grep -A5 'RoleBinding\[view\]' | grep amq-service-account | wc -l`" == 0 ] && oc policy add-role-to-user view system:serviceaccount:${OPENSHIFT_PRIMARY_PROJECT}:amq-service-account ! [ $? == 0 ] && echo "FAILED" && exit 1
+#[ "`oc describe policyBindings :default | grep -A5 'RoleBinding\[view\]' | grep amq-service-account | wc -l`" == 0 ] && oc policy add-role-to-user view system:serviceaccount:${OPENSHIFT_PRIMARY_PROJECT}:amq-service-account ! [ $? == 0 ] && echo "FAILED" && exit 1
+#error: the server doesn't have a resource type "policyBindings"
+oc policy add-role-to-user view system:serviceaccount:${OPENSHIFT_PRIMARY_PROJECT}:amq-service-account 
+! [ $? == 0 ] && echo "FAILED" && exit 1
 
-echo " "
-echo " ---------  Step 6 ------------------"
-#echo "	--> add the amq62-ssl template to the nammespace"
-echo " templates are located here: https://github.com/jboss-openshift/application-templates/tree/master/amq "
-echo "	--> add the amq63-ssl template to the nammespace"
-oc create -f amq63-ssl.json
+echo $'\n ---------  Step 6 ------------------'
+echo "	--> add the amq-broker-72-ssl imagestream to the nammespace"
+oc create -n ${OPENSHIFT_PRIMARY_PROJECT}  -f amq-broker-7-image-streams.yaml
+
+echo $'\n ---------  Step 7 ------------------'
+echo "	--> add the amq-broker-72-ssl template to the nammespace"
+echo " templates are located here: https://github.com/jboss-container-images/jboss-amq-7-broker-openshift-image/tree/amq-broker-72/templates"
+echo "	--> add the amq-broker-72-ssl template to the nammespace"
+
+oc create -n ${OPENSHIFT_PRIMARY_PROJECT} -f amq-broker-72-ssl.json
+#
+# this is from https://github.com/jboss-container-images/jboss-amq-7-broker-openshift-image/tree/amq-broker-72
+# you must specify the required PARAMS AMQ_TRUSTSTORE_PASSWORD and AMQ_KEYSTORE_PASSWORD
+#
+#oc process -f amq-broker-72-ssl.json | oc create -f -
 # add error check??
+
+#echo $TEST1 "---------------afdsafadad"
 
 echo "	--> Create a new application from the amq63-ssl template"
 #
+echo " ---------  Step 8 ------------------"
+echo  `oc get dc -l app=fuse-amq `
+echo " ---------  Step 9 ------------------"
 if [ `oc get dc -l app=fuse-amq | wc -l` == 0 ] ; then
-   oc new-app amq63-ssl -l app=fuse-amq -p APPLICATION_NAME=${OPENSHIFT_APPLICATION_NAME} -p AMQ_MESH_DISCOVERY_TYPE=kube -p MQ_PROTOCOL=openwire -p MQ_QUEUES=testQueue -p MQ_TOPICS=testTopic -p MQ_USERNAME=admin -p MQ_PASSWORD=password -p MQ_TOPICS=testtopic -p AMQ_TRUSTSTORE=amq-server.ts -p AMQ_TRUSTSTORE_PASSWORD=password -p AMQ_KEYSTORE=amq-server.ks -p AMQ_KEYSTORE_PASSWORD=password -p AMQ_STORAGE_USAGE_LIMIT=256M 
+   oc new-app amq-broker-72-ssl -l app=fuse-amq -p IMAGE_STREAM_NAMESPACE=${OPENSHIFT_PRIMARY_PROJECT} -p APPLICATION_NAME=${OPENSHIFT_APPLICATION_NAME} -p AMQ_PROTOCOL=openwire -p AMQ_QUEUES=testQueue -p AMQ_USER=admin -p AMQ_PASSWORD=password -p AMQ_TRUSTSTORE=amq-server.ts -p AMQ_TRUSTSTORE_PASSWORD=password -p AMQ_KEYSTORE=amq-server.ks -p AMQ_KEYSTORE_PASSWORD=password -p AMQ_GLOBAL_MAX_SIZE=256M 
 else 
    echo "FAILED" && exit 1
 fi
 
+echo " ---------  Step 10 ------------------"
 echo "	--> Verify the application is working normally"
-oc status
+oc status --suggest
 
-oc status ! [ $? == 0 ] && echo "FAILED" && exit 1
+echo " ---------  Step 11 ------------------"
+oc status 
+! [ $? == 0 ] && echo "FAILED" && exit 1
 
-
-echo "	--> Create a route to the frontend"
-[ "`oc get route -l app=fuse-amq | wc -l`" == 0 ] &&  oc create route passthrough ${OPENSHIFT_APPLICATION_NAME} --service=${OPENSHIFT_APPLICATION_NAME}-amq-tcp-ssl ! [ $? == 0 ] && echo "FAILED" && exit 1
-
-echo "    --> Create a route to the frontend"
-if [ `oc get route -l app=fuse-amq | wc -l` == 0 ]; then
-  oc create route passthrough  --service=${OPENSHIFT_APPLICATION_NAME}-amq-tcp-ssl
-else
-  echo "FAILED for "$OPENSHIFT_APPLICATION_NAME  && exit 1
+echo " ---------  Step 12 ------------------"
+echo "	--> Create a tcp ssl passthrough route to the frontend"
+# the broker now creates a route for Jolokia, we are just verifing that an ssl route doesn't exist
+TCP_SSL_ROUTE=${OPENSHIFT_APPLICATION_NAME}-amq-tcp-ssl
+ROUTE=`oc get route -l app=fuse-amq`
+if [[ ${ROUTE} =~ "amq-tcp-ssl" ]] ; then 
+#  if the route already exists, fail
+  echo "FAILED to create ${TCP_SSL_ROUTE} passthrough route"
+  exit 1
+else 
+  oc create route passthrough ${OPENSHIFT_APPLICATION_NAME} --service=${TCP_SSL_ROUTE}
 fi
 
+echo " ---------  Step 13 -------------------"
 echo "    --> Verify the application is working normally"
+oc get all
 if [ 'oc get all | wc -l' == 0 ]; then
    echo "FAILED" && exit 1
 else

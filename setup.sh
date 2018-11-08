@@ -41,14 +41,16 @@ echo yes | keytool -import -alias amq-client -keystore amq-server.ts -storepass 
 ! [ $? == 0 ] && echo "FAILED" && exit 1
 
 # --- 2 lines below commented out ???
-echo "	--> Verify the contents of the keystore"
-[ "`keytool -list -keystore amq-server.ts -storepass password| grep amq-server | wc -l`" == 0 ] && echo "FAILED" && exit 1
+echo "	--> Verify the contents of the amq-server.ts"
+[ "`keytool -list -keystore amq-server.ts -storepass password | grep amq-client | wc -l`" == 0 ] && echo "FAILED" && exit 1
 
-echo "	--> Verify the contents of the keystore"
-[ "`keytool -list -keystore amq-server.ks -storepass password| grep amq-server | wc -l`" == 0 ] && echo "FAILED" && exit 1
-echo "	--> Verify the contents of the keystore"
+echo "	--> Verify the contents of the amq-server.ks"
+[ "`keytool -list -keystore amq-server.ks -storepass password | grep amq-server | wc -l`" == 0 ] && echo "FAILED" && exit 1
+
+echo "	--> Verify the contents of the amq-client.ts"
 [ "`keytool -list -keystore amq-client.ts -storepass password | grep amq-server | wc -l`" == 0 ] && echo "FAILED" && exit 1
-echo "	--> Verify the contents of the keystore"
+
+echo "	--> Verify the contents of the amq-client.ks"
 [ "`keytool -list -keystore amq-client.ks -storepass password |  grep amq-client | wc -l`" == 0 ] && echo "FAILED" && exit 1
 
 echo "	--> Log into openshift"

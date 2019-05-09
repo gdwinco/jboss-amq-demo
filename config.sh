@@ -1,7 +1,9 @@
 #!/bin/bash 
 # add -x to line above to debug
 # requires bash 4.2 or later
-
+#
+#  IMPORTANT: set the user password based on your config
+#
 export OPENSHIFT_USER_PASSWORD_DEFAULT=admin
 
 echo $OPENSHIFT_USER_PASSWORD_DEFAULT 
@@ -20,7 +22,7 @@ fi
 #
 #  IMPORTANT: set the correct IP:PORT
 #
-OPENSHIFT_DOMAIN_DEFAULT=192.168.99.108:8443
+OPENSHIFT_DOMAIN_DEFAULT=192.168.99.100:8443
 OPENSHIFT_DOMAIN=${OPENSHIFT_DOMAIN_DEFAULT}
 
 OPENSHIFT_PRIMARY_MASTER_DEFAULT=https://${OPENSHIFT_DOMAIN_DEFAULT}

@@ -98,30 +98,34 @@ oc policy add-role-to-user view system:serviceaccount:${OPENSHIFT_PRIMARY_PROJEC
 
 echo $'\n ---------  Step 6 ------------------'
 echo "	--> add the amq-broker-72-ssl imagestream to the nammespace"
-oc create -n ${OPENSHIFT_PRIMARY_PROJECT}  -f amq-broker-7-image-streams.yaml
+BROKER_URL=https://raw.githubusercontent.com/jboss-container-images/jboss-amq-7-broker-openshift-image/72-1.3.GA
+echo " image streams are located here: ${BROKER_URL} "
+#
+oc create -n ${OPENSHIFT_PRIMARY_PROJECT}  -f ${BROKER_URL}/amq-broker-7-image-streams.yaml
+oc create -n ${OPENSHIFT_PRIMARY_PROJECT}  -f ${BROKER_URL}/amq-broker-7-scaledown-controller-image-streams.yaml
 
 echo $'\n ---------  Step 7 ------------------'
 echo "	--> add the amq-broker-72-ssl template to the nammespace"
-echo " templates are located here: https://github.com/jboss-container-images/jboss-amq-7-broker-openshift-image/tree/amq-broker-72/templates"
+BROKER_TEMPLATES_URL=${BROKER_URL}/templates
+#
+echo " templates are located here: ${BROKER_TEMPLATES_URL}"
 echo "	--> add the amq-broker-72-ssl template to the nammespace"
-
-oc create -n ${OPENSHIFT_PRIMARY_PROJECT} -f amq-broker-72-ssl.json
+#
+oc create -n ${OPENSHIFT_PRIMARY_PROJECT} -f ${BROKER_TEMPLATES_URL}/amq-broker-72-persistence-clustered-controller.yaml
+oc create -n ${OPENSHIFT_PRIMARY_PROJECT} -f ${BROKER_TEMPLATES_URL}/amq-broker-72-persistence-clustered-ssl.yaml
 #
 # this is from https://github.com/jboss-container-images/jboss-amq-7-broker-openshift-image/tree/amq-broker-72
 # you must specify the required PARAMS AMQ_TRUSTSTORE_PASSWORD and AMQ_KEYSTORE_PASSWORD
 #
-#oc process -f amq-broker-72-ssl.json | oc create -f -
-# add error check??
 
-#echo $TEST1 "---------------afdsafadad"
-
-echo "	--> Create a new application from the amq63-ssl template"
+echo "	--> Create a new application from the amq72-ssl template"
 #
 echo " ---------  Step 8 ------------------"
-echo  `oc get dc -l app=fuse-amq `
+APP_LABEL=amq-broker
+echo  `oc get dc -l app=${APP_LABEL} `
 echo " ---------  Step 9 ------------------"
-if [ `oc get dc -l app=fuse-amq | wc -l` == 0 ] ; then
-   oc new-app amq-broker-72-ssl -l app=fuse-amq -p IMAGE_STREAM_NAMESPACE=${OPENSHIFT_PRIMARY_PROJECT} -p APPLICATION_NAME=${OPENSHIFT_APPLICATION_NAME} -p AMQ_PROTOCOL=openwire -p AMQ_QUEUES=testQueue -p AMQ_USER=admin -p AMQ_PASSWORD=password -p AMQ_TRUSTSTORE=amq-server.ts -p AMQ_TRUSTSTORE_PASSWORD=password -p AMQ_KEYSTORE=amq-server.ks -p AMQ_KEYSTORE_PASSWORD=password -p AMQ_GLOBAL_MAX_SIZE=256M 
+if [ `oc get dc -l app=${APP_LABEL} | wc -l` == 0 ] ; then
+   oc new-app amq-broker-72-persistence-clustered-ssl -l app=${APP_LABEL} -p AMQ_REPLICAS=2 -p APPLICATION_NAME=${OPENSHIFT_APPLICATION_NAME} -p AMQ_PROTOCOL=openwire -p AMQ_QUEUES=testQueue -p AMQ_USER=admin -p AMQ_PASSWORD=password -p AMQ_TRUSTSTORE=amq-server.ts -p AMQ_TRUSTSTORE_PASSWORD=password -p AMQ_KEYSTORE=amq-server.ks -p AMQ_KEYSTORE_PASSWORD=password -p AMQ_GLOBAL_MAX_SIZE=256M 
 else 
    echo "FAILED" && exit 1
 fi
@@ -136,18 +140,30 @@ oc status
 
 echo " ---------  Step 12 ------------------"
 echo "	--> Create a tcp ssl passthrough route to the frontend"
-# the broker now creates a route for Jolokia, we are just verifing that an ssl route doesn't exist
-TCP_SSL_ROUTE=${OPENSHIFT_APPLICATION_NAME}-amq-tcp-ssl
-ROUTE=`oc get route -l app=fuse-amq`
-if [[ ${ROUTE} =~ "amq-tcp-ssl" ]] ; then 
+#TCP_SSL_ROUTE=${OPENSHIFT_APPLICATION_NAME}-amq-tcp-ssl
+TCP_SSL_SVC=broker-amq-headless
+#
+ROUTE=`oc get route -l app=${APP_LABEL}`
+if [[ ${ROUTE} =~ ${OPENSHIFT_APPLICATION_NAME} ]] ; then 
 #  if the route already exists, fail
-  echo "FAILED to create ${TCP_SSL_ROUTE} passthrough route"
+  echo "ROUTE ${OPENSHIFT_APPLICATION_NAME} exists, FAILED to create ${TCP_SSL_SVC} passthrough route"
   exit 1
 else 
-  oc create route passthrough ${OPENSHIFT_APPLICATION_NAME} --service=${TCP_SSL_ROUTE}
+  oc create route passthrough ${OPENSHIFT_APPLICATION_NAME} --service=${TCP_SSL_SVC} --port=61617
 fi
+oc get routes
+echo 'End Step 12'
 
-echo " ---------  Step 13 -------------------"
+echo " ---------  Step 13 ------------------"
+echo "	--> Create a tcp ssl passthrough route to the frontend"
+oc create route  passthrough console-jolokia-route --service=${TCP_SSL_SVC} --port=8161
+
+oc get routes
+
+echo 'End Step 13'
+
+
+echo " ---------  Step 14 -------------------"
 echo "    --> Verify the application is working normally"
 oc get all
 if [ 'oc get all | wc -l' == 0 ]; then

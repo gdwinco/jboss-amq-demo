@@ -1,5 +1,5 @@
 #About
-Some simple scripts that show how to set up and use Red Hat AMQ 7 with Red Hat Openshift Container Platform.
+These scripts that show how to set up and use Red Hat AMQ 7.2 with Red Hat Openshift Container Platform.
 
 Important notes: 
 - Assumes password authentication
@@ -31,6 +31,30 @@ The recommend workflow is
 - run **scale.sh** on your local workstation
 	- you may also use **scale.sh {number}** to scale to some number of pods
 - run **clean.sh** to remove any script and openshift artifacts; the eclipse project/artifacts are left in place in case you want to keep them
+
+#Demonstration Examples
+##Jolokia Console
+If your familiar with the community Apache Artemis project, you know it has a very nice web console. This is also available on AMQ 7.2. To find the console URL, look for at the Routes for "console-jolokia-route". The console-jolokia-route should bring up the AMQ management console.
+From the LHS Navigation you can drill down: broker->addresses->testQueue
+On the Artemis tab, you can check the displays: Connections, Sessions, .... 
+
+Check the Artemis(Tab)->Diagrams view. You can set view options and "hovering" over the components gives additional information.
+
+##Producing/Consuming Messages
+
+Two Broker pods are created by default:**broker-amq-0**, **broker-amq-1**. Find the Service, **broker-amq-headless**. Note the internal Hostname. It should be:
+
+**broker-amq-headless.amq-demo-secure.svc.cluster.local**
+
+Access the console for either pod. The pods contain sample code that can be used for testing:
+
+**_./broker/bin/artemis producer --url=tcp://broker-amq-headless.amq-demo-secure.svc.cluster.local:61616_**
+
+will produce 1000 messages on a "TEST" Queue. You can return to the jolokia console to verify that the "Durable message count" is 1000.
+
+You can log into either broker pod and drain the messages using:
+
+**_./broker/bin/artemis consumer --url=tcp://broker-amq-headless.amq-demo-secure.svc.cluster.local:61616_**
 
 
 #Working with Fuse OCP Templates
